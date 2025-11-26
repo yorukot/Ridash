@@ -39,7 +39,7 @@ type EnvConfig struct {
 	RefreshTokenExpiresAt int `env:"REFRESH_TOKEN_EXPIRES_AT" envDefault:"31536000"` // 365 days
 
 	JWTSecretKey   string `env:"JWT_SECRET_KEY,required" envDefault:"change_me_to_a_secure_key"`
-	FrontendDomain string `env:"FRONTEND_DOMAIN" envDefault:"http://localhost:3000"`
+	FrontendDomain string `env:"FRONTEND_DOMAIN" envDefault:"localhost"`
 }
 
 var (

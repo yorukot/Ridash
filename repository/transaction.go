@@ -18,9 +18,9 @@ func StartTransaction(db *pgxpool.Pool, ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-// DeferRollback rollback the transaction
+// DeferRollback rollback the transaction if it's not already closed
 func DeferRollback(tx pgx.Tx, e echo.Context) {
-	if err := tx.Rollback(e.Request().Context()); err != nil {
+	if err := tx.Rollback(e.Request().Context()); err != nil && err != pgx.ErrTxClosed {
 		e.Logger().Error("Failed to rollback transaction", err)
 	}
 }

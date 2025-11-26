@@ -71,10 +71,13 @@ func generateRefreshToken(userID int64, userAgent string, ip string) (models.Ref
 		return models.RefreshToken{}, fmt.Errorf("failed to generate refresh token ID: %w", err)
 	}
 
-	ipStr, _, err := net.SplitHostPort(ip)
-	if err != nil {
-		return models.RefreshToken{}, fmt.Errorf("failed to split host port: %w", err)
+	// Extract IP address, handling cases where port may or may not be present
+	ipStr := ip
+	if host, _, err := net.SplitHostPort(ip); err == nil {
+		// Successfully split, use the host part
+		ipStr = host
 	}
+	// If SplitHostPort fails, ip is already just an IP address without port
 
 	refreshToken, err := encrypt.GenerateSecureRefreshToken()
 	if err != nil {
