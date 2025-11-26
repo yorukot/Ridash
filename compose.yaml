@@ -1,0 +1,15 @@
+services:
+  timescale:
+    image: timescale/timescaledb:latest-pg17
+    container_name: ridash-timescale
+    environment:
+      POSTGRES_DB: ridash
+      POSTGRES_USER: ridash
+      POSTGRES_PASSWORD: ridash-this-is-a-really-long-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
+volumes:
+  timescale_data:
