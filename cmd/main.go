@@ -66,7 +66,7 @@ func main() {
 
 	// Setup routes
 	routes(e, db)
-	zap.L().Fatal("Api server crash", zap.Error(e.Start(":" + env.AppPort)))
+	zap.L().Fatal("Api server crash", zap.Error(e.Start(":"+env.AppPort)))
 }
 
 func routes(e *echo.Echo, db *pgxpool.Pool) {
@@ -78,4 +78,5 @@ func routes(e *echo.Echo, db *pgxpool.Pool) {
 	// User routes
 	api := e.Group("/api")
 	router.AuthRouter(api, db)
+	router.TeamRouter(api, db)
 }

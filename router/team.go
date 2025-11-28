@@ -16,4 +16,7 @@ func TeamRouter(api *echo.Group, db *pgxpool.Pool) {
 
 	r := api.Group("/teams")
 	r.POST("/", teamHandler.CreateTeam, middleware.AuthRequiredMiddleware)
+	r.GET("/:id", teamHandler.GetTeam)
+	r.PUT("/:id", teamHandler.UpdateTeam, middleware.AuthRequiredMiddleware)
+	r.DELETE("/:id", teamHandler.DeleteTeam, middleware.AuthRequiredMiddleware)
 }

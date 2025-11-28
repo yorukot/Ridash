@@ -34,7 +34,7 @@ type createTeamRequest struct {
 // @Failure 400 {object} response.ErrorResponse "Invalid request body"
 // @Failure 401 {object} response.ErrorResponse "Unauthorized"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/create [post]
+// @Router /teams [post]
 // @Security BearerAuth
 func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Get the user ID from the context (set by auth middleware)

@@ -66,3 +66,27 @@ func GetTeamByID(ctx context.Context, tx pgx.Tx, teamID int64) (*models.Team, er
 
 	return &team, nil
 }
+
+// UpdateTeam updates an existing team
+func UpdateTeam(ctx context.Context, tx pgx.Tx, teamID int64, name string, updatedAt any) error {
+	query := `UPDATE teams
+	          SET name = $1, updated_at = $2
+	          WHERE id = $3`
+
+	_, err := tx.Exec(ctx, query, name, updatedAt, teamID)
+	return err
+}
+
+// DeleteTeamMembersByTeamID removes all members linked to a team
+func DeleteTeamMembersByTeamID(ctx context.Context, tx pgx.Tx, teamID int64) error {
+	query := `DELETE FROM team_members WHERE team_id = $1`
+	_, err := tx.Exec(ctx, query, teamID)
+	return err
+}
+
+// DeleteTeam deletes a team by ID
+func DeleteTeam(ctx context.Context, tx pgx.Tx, teamID int64) error {
+	query := `DELETE FROM teams WHERE id = $1`
+	_, err := tx.Exec(ctx, query, teamID)
+	return err
+}

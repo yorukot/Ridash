@@ -1,4 +1,4 @@
-package team
+package folder
 
 import (
 	"net/http"
@@ -11,25 +11,26 @@ import (
 )
 
 // +----------------------------------------------+
-// | DeleteTeam                                   |
+// | DeleteFolder                                 |
 // +----------------------------------------------+
 
-// DeleteTeam godoc
-// @Summary Delete a team
-// @Description Deletes a team and its memberships (owner only)
-// @Tags team
+// DeleteFolder godoc
+// @Summary Delete a folder
+// @Description Deletes a folder within a team (owner only)
+// @Tags folder
 // @Accept json
 // @Produce json
-// @Param id path int true "Team ID"
-// @Success 200 {object} response.SuccessResponse "Team deleted successfully"
-// @Failure 400 {object} response.ErrorResponse "Invalid team ID"
+// @Param teamID path int true "Team ID"
+// @Param id path int true "Folder ID"
+// @Success 200 {object} response.SuccessResponse "Folder deleted successfully"
+// @Failure 400 {object} response.ErrorResponse "Invalid team ID or folder ID"
 // @Failure 401 {object} response.ErrorResponse "Unauthorized"
-// @Failure 403 {object} response.ErrorResponse "Only team owner can delete the team"
-// @Failure 404 {object} response.ErrorResponse "Team not found"
+// @Failure 403 {object} response.ErrorResponse "Only team owner can delete the folder"
+// @Failure 404 {object} response.ErrorResponse "Team or folder not found"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{id} [delete]
+// @Router /teams/{teamID}/folders/{id} [delete]
 // @Security BearerAuth
-func (h *TeamHandler) DeleteTeam(c echo.Context) error {
+func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 	userIDStr, ok := c.Get(string(middleware.UserIDKey)).(string)
 	if !ok || userIDStr == "" {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
@@ -40,10 +41,16 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
 	}
 
-	teamIDStr := c.Param("id")
+	teamIDStr := c.Param("teamID")
 	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid team ID")
+	}
+
+	folderIDStr := c.Param("id")
+	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid folder ID")
 	}
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
@@ -62,20 +69,25 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 	}
 
 	if team.OwnerID != userID {
-		return echo.NewHTTPError(http.StatusForbidden, "Only team owner can delete the team")
+		return echo.NewHTTPError(http.StatusForbidden, "Only team owner can delete the folder")
 	}
 
-	if err := repository.DeleteTeamMembersByTeamID(c.Request().Context(), tx, teamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team members")
+	folder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, folderID, teamID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folder")
 	}
 
-	if err := repository.DeleteTeam(c.Request().Context(), tx, teamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team")
+	if folder == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Folder not found")
+	}
+
+	if err := repository.DeleteFolder(c.Request().Context(), tx, folderID, teamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete folder")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
-	return c.JSON(http.StatusOK, response.SuccessMessage("Team deleted successfully"))
+	return c.JSON(http.StatusOK, response.SuccessMessage("Folder deleted successfully"))
 }
