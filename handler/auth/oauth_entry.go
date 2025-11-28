@@ -2,8 +2,9 @@ package auth
 
 import (
 	"net/http"
-	"ridash/middleware"
+	authutil "ridash/utils/auth"
 	"ridash/utils/config"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -32,8 +33,8 @@ func (h *AuthHandler) OAuthEntry(c echo.Context) error {
 	}
 
 	var userID string
-	if userIDValue := c.Get(string(middleware.UserIDKey)); userIDValue != nil {
-		userID = userIDValue.(string)
+	if id, err := authutil.GetUserIDFromContext(c); err == nil && id != nil {
+		userID = strconv.FormatInt(*id, 10)
 	}
 
 	expiresAt := time.Now().Add(time.Duration(config.Env().OAuthStateExpiresAt) * time.Second)

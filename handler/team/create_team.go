@@ -3,12 +3,11 @@ package team
 import (
 	"encoding/json"
 	"net/http"
-	"ridash/middleware"
 	"ridash/models"
 	"ridash/repository"
+	authutil "ridash/utils/auth"
 	"ridash/utils/id"
 	"ridash/utils/response"
-	"strconv"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -38,14 +37,9 @@ type createTeamRequest struct {
 // @Security BearerAuth
 func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Get the user ID from the context (set by auth middleware)
-	userIDStr, ok := c.Get(string(middleware.UserIDKey)).(string)
-	if !ok || userIDStr == "" {
+	userID, err := authutil.GetUserIDFromContext(c)
+	if err != nil || userID == nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	}
-
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
 	}
 
 	// Decode the request body
@@ -82,7 +76,7 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Create the team
 	team := models.Team{
 		ID:        teamID,
-		OwnerID:   userID,
+		OwnerID:   *userID,
 		Name:      createTeamRequest.Name,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -92,7 +86,7 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	teamMember := models.TeamMember{
 		ID:        teamMemberID,
 		TeamID:    teamID,
-		UserID:    userID,
+		UserID:    *userID,
 		Role:      models.RoleOwner,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

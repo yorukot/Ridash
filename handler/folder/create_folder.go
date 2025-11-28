@@ -3,9 +3,9 @@ package folder
 import (
 	"encoding/json"
 	"net/http"
-	"ridash/middleware"
 	"ridash/models"
 	"ridash/repository"
+	authutil "ridash/utils/auth"
 	"ridash/utils/id"
 	"ridash/utils/response"
 	"strconv"
@@ -41,14 +41,9 @@ type createFolderRequest struct {
 // @Router /teams/{teamID}/folders [post]
 // @Security BearerAuth
 func (h *FolderHandler) CreateFolder(c echo.Context) error {
-	userIDStr, ok := c.Get(string(middleware.UserIDKey)).(string)
-	if !ok || userIDStr == "" {
+	userID, err := authutil.GetUserIDFromContext(c)
+	if err != nil || userID == nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	}
-
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
 	}
 
 	teamIDStr := c.Param("teamID")
@@ -81,7 +76,7 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "Team not found")
 	}
 
-	if team.OwnerID != userID {
+	if team.OwnerID != *userID {
 		return echo.NewHTTPError(http.StatusForbidden, "Only team owner can create folders")
 	}
 

@@ -3,8 +3,8 @@ package team
 import (
 	"encoding/json"
 	"net/http"
-	"ridash/middleware"
 	"ridash/repository"
+	authutil "ridash/utils/auth"
 	"ridash/utils/response"
 	"strconv"
 	"time"
@@ -39,14 +39,9 @@ type updateTeamRequest struct {
 // @Security BearerAuth
 func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 	// Get the user ID from the context (set by auth middleware)
-	userIDStr, ok := c.Get(string(middleware.UserIDKey)).(string)
-	if !ok || userIDStr == "" {
+	userID, err := authutil.GetUserIDFromContext(c)
+	if err != nil || userID == nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	}
-
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
 	}
 
 	// Get the team ID from the URL parameter
@@ -87,7 +82,7 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 	}
 
 	// Check if the user is the owner of the team
-	if team.OwnerID != userID {
+	if team.OwnerID != *userID {
 		return echo.NewHTTPError(http.StatusForbidden, "Only team owner can update the team")
 	}
 
