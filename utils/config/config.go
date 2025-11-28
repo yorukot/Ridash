@@ -27,7 +27,7 @@ type EnvConfig struct {
 	AppEnv       AppEnv `env:"APP_ENV" envDefault:"prod"`
 	AppName      string `env:"APP_NAME" envDefault:"knocker"`
 	AppMachineID int16  `env:"APP_MACHINE_ID" envDefault:"1"`
-	AppPort      string `env:"APP_PORT" envDefault:"8080"`
+	AppPort      string `env:"APP_PORT" envDefault:"8000"`
 
 	SMTPHost     string `env:"SMTP_HOST,required"`
 	SMTPPort     int    `env:"SMTP_PORT" envDefault:"587"`

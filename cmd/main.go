@@ -2,13 +2,7 @@ package main
 
 import (
 	"net/http"
-
-	"ridash/db"
-	"ridash/router"
-	"ridash/utils/config"
-	"ridash/utils/id"
-	"ridash/utils/logger"
-
+	swaggerDocs "ridash/docs"
 	customMiddleware "ridash/middleware"
 
 	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
@@ -18,7 +12,11 @@ import (
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
 
-	_ "ridash/docs" // Import generated docs
+	"ridash/db"
+	"ridash/router"
+	"ridash/utils/config"
+	"ridash/utils/id"
+	"ridash/utils/logger"
 )
 
 // @title Ridash API
@@ -33,7 +31,7 @@ import (
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host localhost:8080
+// @host localhost:8000
 // @BasePath /api
 // @schemes http https
 
@@ -90,7 +88,8 @@ func routes(e *echo.Echo, db *pgxpool.Pool) {
 func scalarDocsHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		html, err := scalar.ApiReferenceHTML(&scalar.Options{
-			SpecURL: "/swagger/doc.json",
+			// Use generated swagger spec as inline content to avoid filesystem lookups
+			SpecContent: swaggerDocs.SwaggerInfo.ReadDoc(),
 			CustomOptions: scalar.CustomOptions{
 				PageTitle: "Ridash API Reference",
 			},
