@@ -27,7 +27,7 @@ type Account struct {
 type OAuthToken struct {
 	AccountID    int64     `json:"account_id,string" example:"175928847299117063"`      // Associated account ID
 	AccessToken  string    `json:"access_token" example:"ya29.a0AfH6SMC..."`            // OAuth access token
-	RefreshToken *string    `json:"refresh_token" example:"1//0GWthXqhYjIsKCgYIARAA..."` // OAuth refresh token
+	RefreshToken *string   `json:"refresh_token" example:"1//0GWthXqhYjIsKCgYIARAA..."` // OAuth refresh token
 	Expiry       time.Time `json:"expiry" example:"2023-01-01T13:00:00Z"`               // Token expiration time
 	TokenType    string    `json:"token_type" example:"Bearer"`                         // Token type (usually Bearer)
 	Provider     Provider  `json:"provider" example:"google"`                           // OAuth provider
