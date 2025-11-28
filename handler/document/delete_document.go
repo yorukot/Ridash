@@ -1,13 +1,16 @@
 package document
 
 import (
+	"errors"
 	"net/http"
 	"ridash/repository"
 	authutil "ridash/utils/auth"
+	"ridash/utils/docmanager"
 	"ridash/utils/response"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -63,6 +66,13 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 
 	if err := repository.DeleteDocument(c.Request().Context(), tx, docID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete document")
+	}
+
+	if h.DocManager != nil {
+		if err := h.DocManager.DeleteDocument(c.Request().Context(), docID); err != nil && !errors.Is(err, docmanager.ErrDocumentNotFound) {
+			zap.L().Error("Failed to delete document from document manager", zap.Error(err), zap.Int64("document_id", docID))
+			return echo.NewHTTPError(http.StatusBadGateway, "Failed to delete document content")
+		}
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+
 	"ridash/db"
 	"ridash/router"
 	"ridash/utils/config"
@@ -9,6 +11,7 @@ import (
 
 	customMiddleware "ridash/middleware"
 
+	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -73,10 +76,31 @@ func routes(e *echo.Echo, db *pgxpool.Pool) {
 	if config.Env().AppEnv == config.AppEnvDev {
 		// Swagger documentation route
 		e.GET("/swagger/*", echoSwagger.WrapHandler)
+		e.GET("/reference", scalarDocsHandler())
 	}
 
 	// User routes
 	api := e.Group("/api")
 	router.AuthRouter(api, db)
 	router.TeamRouter(api, db)
+	router.FolderRouter(api, db)
+	router.DocumentRouter(api, db)
+}
+
+func scalarDocsHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		html, err := scalar.ApiReferenceHTML(&scalar.Options{
+			SpecURL: "/swagger/doc.json",
+			CustomOptions: scalar.CustomOptions{
+				PageTitle: "Ridash API Reference",
+			},
+			DarkMode: true,
+		})
+		if err != nil {
+			zap.L().Error("failed to generate Scalar docs", zap.Error(err))
+			return c.String(http.StatusInternalServerError, "could not render API reference")
+		}
+
+		return c.HTML(http.StatusOK, html)
+	}
 }

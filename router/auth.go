@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Auth router going to route register signin etc
+// AuthRouter wires authentication and OAuth routes
 func AuthRouter(api *echo.Group, db *pgxpool.Pool) {
 	oauthConfig, err := config.GetOAuthConfig()
 	if err != nil {
@@ -21,10 +21,14 @@ func AuthRouter(api *echo.Group, db *pgxpool.Pool) {
 		DB:          db,
 		OAuthConfig: oauthConfig,
 	}
+
 	r := api.Group("/auth")
-
-	r.GET("/oauth/:provider", authHandler.OAuthEntry, middleware.AuthOptionalMiddleware)
-	r.GET("/oauth/:provider/callback", authHandler.OAuthCallback)
-
 	r.POST("/register", authHandler.Register)
+	r.POST("/login", authHandler.Login)
+	r.POST("/refresh", authHandler.RefreshToken)
+
+	// OAuth routes allow optional auth for linking existing accounts
+	oauth := r.Group("/oauth", middleware.AuthOptionalMiddleware)
+	oauth.GET("/:provider", authHandler.OAuthEntry)
+	oauth.GET("/:provider/callback", authHandler.OAuthCallback)
 }

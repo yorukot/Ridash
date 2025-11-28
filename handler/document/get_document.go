@@ -1,14 +1,17 @@
 package document
 
 import (
+	"errors"
 	"net/http"
 	"ridash/models"
 	"ridash/repository"
 	authutil "ridash/utils/auth"
+	"ridash/utils/docmanager"
 	"ridash/utils/response"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -21,7 +24,7 @@ import (
 // @Tags documents
 // @Produce json
 // @Param id path int true "Document ID"
-// @Success 200 {object} response.SuccessResponse{data=models.Document} "Document retrieved successfully"
+// @Success 200 {object} response.SuccessResponse{data=models.DocumentWithContent} "Document retrieved successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid document ID"
 // @Failure 401 {object} response.ErrorResponse "Invalid user ID"
 // @Failure 403 {object} response.ErrorResponse "Access denied"
@@ -76,5 +79,25 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
-	return c.JSON(http.StatusOK, response.Success("Document retrieved successfully", doc))
+	result := any(doc)
+	if h.DocManager != nil {
+		content, err := h.DocManager.GetDocumentContent(c.Request().Context(), doc.ID)
+		if err != nil && !errors.Is(err, docmanager.ErrDocumentNotFound) {
+			zap.L().Error("Failed to fetch document content from manager", zap.Error(err), zap.Int64("document_id", doc.ID))
+			return echo.NewHTTPError(http.StatusBadGateway, "Failed to fetch document content")
+		}
+
+		withContent := models.DocumentWithContent{
+			Document: *doc,
+		}
+
+		if content != nil {
+			withContent.Content = content.Content
+			withContent.Seq = content.Seq
+		}
+
+		result = withContent
+	}
+
+	return c.JSON(http.StatusOK, response.Success("Document retrieved successfully", result))
 }

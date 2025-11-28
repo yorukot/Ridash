@@ -29,6 +29,12 @@ type EnvConfig struct {
 	AppMachineID int16  `env:"APP_MACHINE_ID" envDefault:"1"`
 	AppPort      string `env:"APP_PORT" envDefault:"8080"`
 
+	SMTPHost     string `env:"SMTP_HOST,required"`
+	SMTPPort     int    `env:"SMTP_PORT" envDefault:"587"`
+	SMTPUsername string `env:"SMTP_USERNAME,required"`
+	SMTPPassword string `env:"SMTP_PASSWORD,required"`
+	SMTPFrom     string `env:"SMTP_FROM,required"`
+
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID,required"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET,required"`
 	GoogleRedirectURL  string `env:"GOOGLE_REDIRECT_URL,required"`
@@ -40,6 +46,10 @@ type EnvConfig struct {
 
 	JWTSecretKey   string `env:"JWT_SECRET_KEY,required" envDefault:"change_me_to_a_secure_key"`
 	FrontendDomain string `env:"FRONTEND_DOMAIN" envDefault:"localhost"`
+
+	// Document manager
+	DocManagerBaseURL  string `env:"DOC_MANAGER_BASE_URL,required"`
+	DocManagerAPIToken string `env:"DOC_MANAGER_API_TOKEN"`
 }
 
 var (
@@ -53,6 +63,7 @@ func loadConfig() (*EnvConfig, error) {
 	if err := env.Parse(cfg); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 

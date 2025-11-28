@@ -3,6 +3,7 @@ module ridash
 go 1.24.3
 
 require (
+	github.com/MarceloPetrucio/go-scalar-api-reference v0.0.0-20240521013641-ce5d2efe0e06
 	github.com/caarlos0/env/v10 v10.0.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.45.0

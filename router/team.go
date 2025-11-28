@@ -8,15 +8,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// TeamRouter handles all team-related routes
+// TeamRouter handles team-related routes
 func TeamRouter(api *echo.Group, db *pgxpool.Pool) {
 	teamHandler := &team.TeamHandler{
 		DB: db,
 	}
 
-	r := api.Group("/teams")
-	r.POST("/", teamHandler.CreateTeam, middleware.AuthRequiredMiddleware)
+	r := api.Group("/teams", middleware.AuthRequiredMiddleware)
+	r.POST("", teamHandler.CreateTeam)
 	r.GET("/:id", teamHandler.GetTeam)
-	r.PUT("/:id", teamHandler.UpdateTeam, middleware.AuthRequiredMiddleware)
-	r.DELETE("/:id", teamHandler.DeleteTeam, middleware.AuthRequiredMiddleware)
+	r.PUT("/:id", teamHandler.UpdateTeam)
+	r.DELETE("/:id", teamHandler.DeleteTeam)
 }

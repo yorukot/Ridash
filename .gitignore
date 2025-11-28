@@ -1,6 +1,7 @@
 # Output
 /tmp
 /build
+.cache/
 
 # OS
 .DS_Store

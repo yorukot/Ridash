@@ -21,3 +21,10 @@ type Document struct {
 	CreatedAt  time.Time      `json:"created_at" example:"2023-01-01T12:00:00Z"`    // Timestamp when the document was created
 	UpdatedAt  time.Time      `json:"updated_at" example:"2023-01-01T12:00:00Z"`    // Timestamp when the document was last updated
 }
+
+// DocumentWithContent includes the editable payload from the document manager.
+type DocumentWithContent struct {
+	Document
+	Content string `json:"content,omitempty" example:"Hello, world!"` // Latest document text
+	Seq     int64  `json:"seq,omitempty" example:"12"`                // Last sequence applied to the document content
+}
