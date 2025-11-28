@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // StartTransaction return a tx
@@ -19,16 +19,16 @@ func StartTransaction(db *pgxpool.Pool, ctx context.Context) (pgx.Tx, error) {
 }
 
 // DeferRollback rollback the transaction if it's not already closed
-func DeferRollback(tx pgx.Tx, e echo.Context) {
-	if err := tx.Rollback(e.Request().Context()); err != nil && err != pgx.ErrTxClosed {
-		e.Logger().Error("Failed to rollback transaction", err)
+func DeferRollback(tx pgx.Tx, ctx context.Context) {
+	if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
+		zap.L().Error("Failed to rollback transaction", zap.Error(err))
 	}
 }
 
 // CommitTransaction commit the transaction
-func CommitTransaction(tx pgx.Tx, e echo.Context) error {
-	if err := tx.Commit(e.Request().Context()); err != nil {
-		e.Logger().Error("Failed to commit transaction", err)
+func CommitTransaction(tx pgx.Tx, ctx context.Context) error {
+	if err := tx.Commit(ctx); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
 		return err
 	}
 	return nil

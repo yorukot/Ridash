@@ -9,6 +9,36 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// GetUserByEmail retrieves a user by email address (through the accounts table)
+func GetUserByEmail(ctx context.Context, tx pgx.Tx, email string) (*models.User, error) {
+	query := `
+		SELECT u.id, u.password_hash, u.display_name, u.avatar, u.created_at, u.updated_at
+		FROM users u
+		JOIN accounts a ON u.id = a.user_id
+		WHERE a.email = $1 AND a.provider = $2
+		LIMIT 1`
+
+	var user models.User
+	err := tx.QueryRow(ctx, query, email, models.ProviderEmail).Scan(
+		&user.ID,
+		&user.PasswordHash,
+		&user.DisplayName,
+		&user.Avatar,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil // Not an error, just not found
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // GetAccountByEmail retrieves an account by email address
 func GetAccountByEmail(ctx context.Context, tx pgx.Tx, email string) (*models.Account, error) {
 	query := `SELECT id, provider, provider_user_id, user_id, email, created_at, updated_at
@@ -63,6 +93,35 @@ func GetAccountWithUserByProviderUserID(ctx context.Context, db pgx.Tx, provider
 	}
 
 	return &result.A, &result.U, nil
+}
+
+// GetRefreshTokenByToken retrieves a refresh token by its token value
+func GetRefreshTokenByToken(ctx context.Context, tx pgx.Tx, token string) (*models.RefreshToken, error) {
+	query := `SELECT id, user_id, token, user_agent, ip, used_at, created_at
+	          FROM refresh_tokens
+	          WHERE token = $1
+	          LIMIT 1`
+
+	var refreshToken models.RefreshToken
+	err := tx.QueryRow(ctx, query, token).Scan(
+		&refreshToken.ID,
+		&refreshToken.UserID,
+		&refreshToken.Token,
+		&refreshToken.UserAgent,
+		&refreshToken.IP,
+		&refreshToken.UsedAt,
+		&refreshToken.CreatedAt,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil // Not an error, just not found
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &refreshToken, nil
 }
 
 // CreateAccount creates a new account
@@ -155,5 +214,33 @@ func CreateOAuthToken(ctx context.Context, db pgx.Tx, oauthToken models.OAuthTok
 		oauthToken.CreatedAt,
 		oauthToken.UpdatedAt,
 	)
+	return err
+}
+
+// CreateRefreshToken creates a new refresh token in the database
+func CreateRefreshToken(ctx context.Context, tx pgx.Tx, token models.RefreshToken) error {
+	query := `INSERT INTO refresh_tokens (id, user_id, token, user_agent, ip, used_at, created_at)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+	_, err := tx.Exec(ctx, query,
+		token.ID,
+		token.UserID,
+		token.Token,
+		token.UserAgent,
+		token.IP,
+		token.UsedAt,
+		token.CreatedAt,
+	)
+
+	return err
+}
+
+// UpdateRefreshTokenUsedAt updates the used_at timestamp for a refresh token
+func UpdateRefreshTokenUsedAt(ctx context.Context, tx pgx.Tx, token models.RefreshToken) error {
+	query := `UPDATE refresh_tokens
+	          SET used_at = $1
+	          WHERE id = $2`
+
+	_, err := tx.Exec(ctx, query, token.UsedAt, token.ID)
 	return err
 }

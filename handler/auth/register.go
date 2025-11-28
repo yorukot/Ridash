@@ -49,7 +49,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 
-	defer repository.DeferRollback(tx, c)
+	defer repository.DeferRollback(tx, c.Request().Context())
 
 	// Get the account by email
 	checkedAccount, err := repository.GetAccountByEmail(c.Request().Context(), tx, registerRequest.Email)
@@ -80,7 +80,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	}
 
 	// Commit the transaction
-	if err := repository.CommitTransaction(tx, c); err != nil {
+	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 

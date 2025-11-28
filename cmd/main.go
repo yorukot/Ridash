@@ -1,16 +1,19 @@
 package main
 
 import (
-	"log"
 	"ridash/db"
 	"ridash/router"
 	"ridash/utils/config"
 	"ridash/utils/id"
+	"ridash/utils/logger"
+
+	customMiddleware "ridash/middleware"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
+	"go.uber.org/zap"
 
 	_ "ridash/docs" // Import generated docs
 )
@@ -38,30 +41,32 @@ import (
 
 func main() {
 	// Load env
+	// Initialize logger
+	logger.InitLogger()
+
 	env, err := config.InitConfig()
 	if err != nil {
-		log.Fatal("Failed to load config:", err)
+		zap.L().Fatal("Failed to load config:", zap.Error(err))
 	}
 
 	e := echo.New()
-	e.Use(middleware.Logger())
+	e.Use(customMiddleware.ZapLogger(zap.L()))
 	e.Use(middleware.Recover())
 
 	// Initialize sonyflake
 	err = id.Init()
 	if err != nil {
-		e.Logger.Fatal("Failed to initialize ID generator:", err)
+		zap.L().Fatal("Failed to initialize ID generator:", zap.Error(err))
 	}
 
-	db, err := db.InitDatabase(e.Logger)
+	db, err := db.InitDatabase()
 	if err != nil {
-		e.Logger.Fatal("Failed to connect to database:", err)
+		zap.L().Fatal("Failed to initialize database:", zap.Error(err))
 	}
 
 	// Setup routes
 	routes(e, db)
-	e.Logger.Infof("Starting server on port %s in %s mode", env.AppPort, env.AppEnv)
-	e.Logger.Fatal(e.Start(":" + env.AppPort))
+	zap.L().Fatal("Api server crash", zap.Error(e.Start(":" + env.AppPort)))
 }
 
 func routes(e *echo.Echo, db *pgxpool.Pool) {

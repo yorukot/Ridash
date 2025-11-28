@@ -12,11 +12,11 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // InitDatabase initialize the database connection pool and return the pool and also migrate the database
-func InitDatabase(logger echo.Logger) (*pgxpool.Pool, error) {
+func InitDatabase() (*pgxpool.Pool, error) {
 	ctx := context.Background()
 
 	// Configure connection pool to handle concurrent operations better
@@ -41,9 +41,9 @@ func InitDatabase(logger echo.Logger) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	logger.Info("Database initialized")
+	zap.L().Info("Database initialized")
 
-	Migrator(logger)
+	Migrator()
 
 	return pool, nil
 }
@@ -67,8 +67,8 @@ func getDatabaseURL() string {
 }
 
 // Migrator the database
-func Migrator(logger echo.Logger) {
-	logger.Info("Migrating database")
+func Migrator() {
+	zap.L().Info("Migrating database")
 
 	wd, _ := os.Getwd()
 
@@ -77,12 +77,12 @@ func Migrator(logger echo.Logger) {
 
 	m, err := migrate.New(migrationsPath, databaseURL)
 	if err != nil {
-		logger.Fatal("failed to create migrator:", err)
+		zap.L().Fatal("failed to create migrator", zap.Error(err))
 	}
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		logger.Fatal("failed to migrate database:", err)
+		zap.L().Fatal("failed to migrate database", zap.Error(err))
 	}
 
-	logger.Info("Database migrated")
+	zap.L().Info("Database migrated")
 }
