@@ -15,6 +15,7 @@ import (
 	"ridash/repository"
 	authutil "ridash/utils/auth"
 	"ridash/utils/docmanager"
+	"ridash/utils/response"
 )
 
 // ProxyDocumentWebsocket upgrades the connection and proxies it to the document manager.
@@ -36,13 +37,13 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 	ctx := c.Request().Context()
 	tx, err := repository.StartTransaction(h.DB, ctx)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, ctx)
 
 	doc, err := repository.GetDocumentByID(ctx, tx, docID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
+		return response.InternalServerError("Failed to get document", err)
 	}
 
 	if doc == nil {
@@ -51,7 +52,7 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 
 	allowed, err := canWriteDocument(ctx, tx, doc, *userID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check permissions")
+		return response.InternalServerError("Failed to check permissions", err)
 	}
 
 	if !allowed {
@@ -59,7 +60,7 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, ctx); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	ticket, err := h.DocManager.IssueTicket(ctx, doc.ID, strconv.FormatInt(*userID, 10))
@@ -75,7 +76,7 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 
 	target, err := h.DocManager.EditEndpoint(ticket.Ticket)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to prepare document session")
+		return response.InternalServerError("Failed to prepare document session", err)
 	}
 
 	proxy := &httputil.ReverseProxy{

@@ -50,13 +50,13 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	if team == nil {
@@ -69,7 +69,7 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 
 	folder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, folderID, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folder")
+		return response.InternalServerError("Failed to get folder", err)
 	}
 
 	if folder == nil {
@@ -77,11 +77,11 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 	}
 
 	if err := repository.DeleteFolder(c.Request().Context(), tx, folderID, teamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete folder")
+		return response.InternalServerError("Failed to delete folder", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Folder deleted successfully"))

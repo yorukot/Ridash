@@ -57,18 +57,18 @@ func (h *DocumentHandler) UpdateDocument(c echo.Context) error {
 	}
 
 	if err := validator.New().Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
+		return response.InternalServerError("Failed to get document", err)
 	}
 	if doc == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
@@ -79,7 +79,7 @@ func (h *DocumentHandler) UpdateDocument(c echo.Context) error {
 
 	now := time.Now()
 	if err := repository.UpdateDocument(c.Request().Context(), tx, docID, req.Name, req.Permission, now); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update document")
+		return response.InternalServerError("Failed to update document", err)
 	}
 
 	doc.Name = req.Name
@@ -87,7 +87,7 @@ func (h *DocumentHandler) UpdateDocument(c echo.Context) error {
 	doc.UpdatedAt = now
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Document updated successfully", doc))

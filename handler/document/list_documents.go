@@ -30,17 +30,17 @@ func (h *DocumentHandler) ListDocuments(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	documents, err := repository.ListDocumentsForUser(c.Request().Context(), tx, userID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list documents")
+		return response.InternalServerError("Failed to list documents", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Documents retrieved successfully", documents))

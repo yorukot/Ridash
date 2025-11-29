@@ -43,13 +43,13 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	if team == nil {
@@ -61,15 +61,15 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 	}
 
 	if err := repository.DeleteTeamMembersByTeamID(c.Request().Context(), tx, teamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team members")
+		return response.InternalServerError("Failed to delete team members", err)
 	}
 
 	if err := repository.DeleteTeam(c.Request().Context(), tx, teamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team")
+		return response.InternalServerError("Failed to delete team", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Team deleted successfully"))

@@ -15,8 +15,8 @@ func FolderRouter(api *echo.Group, db *pgxpool.Pool) {
 	}
 
 	r := api.Group("/teams/:teamID/folders", middleware.AuthRequiredMiddleware)
-	r.POST("/", folderHandler.CreateFolder)
-	r.GET("/", folderHandler.GetFolders)
+	r.POST("", folderHandler.CreateFolder)
+	r.GET("", folderHandler.GetFolders)
 	r.GET("/:id", folderHandler.GetFolder)
 	r.PUT("/:id", folderHandler.UpdateFolder)
 	r.DELETE("/:id", folderHandler.DeleteFolder)

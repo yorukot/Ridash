@@ -45,13 +45,13 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
+		return response.InternalServerError("Failed to get document", err)
 	}
 
 	if doc == nil {
@@ -67,7 +67,7 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 		if *userID != doc.OwnerID {
 			share, err := repository.GetShareByDocumentAndUser(c.Request().Context(), tx, doc.ID, *userID)
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check share permissions")
+				return response.InternalServerError("Failed to check share permissions", err)
 			}
 			if share == nil {
 				return echo.NewHTTPError(http.StatusForbidden, "Access denied")
@@ -76,7 +76,7 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	result := any(doc)

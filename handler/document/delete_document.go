@@ -45,13 +45,13 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
+		return response.InternalServerError("Failed to get document", err)
 	}
 	if doc == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
@@ -61,11 +61,11 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 	}
 
 	if err := repository.DeleteSharesByDocument(c.Request().Context(), tx, docID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete document shares")
+		return response.InternalServerError("Failed to delete document shares", err)
 	}
 
 	if err := repository.DeleteDocument(c.Request().Context(), tx, docID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete document")
+		return response.InternalServerError("Failed to delete document", err)
 	}
 
 	if h.DocManager != nil {
@@ -76,7 +76,7 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Document deleted successfully"))

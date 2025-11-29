@@ -44,6 +44,7 @@ func main() {
 	// Load env
 	// Initialize logger
 	logger.InitLogger()
+	defer zap.L().Sync()
 
 	env, err := config.InitConfig()
 	if err != nil {

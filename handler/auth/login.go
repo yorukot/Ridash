@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -43,20 +42,20 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	// Validate the request body
 	if err := validator.New().Struct(loginRequest); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction", err)
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	// Get the user by email
 	user, err := repository.GetUserByEmail(c.Request().Context(), tx, loginRequest.Email)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get user by email", err)
+		return response.InternalServerError("Failed to get user by email", err)
 	}
 
 	// TODO: Need to change this
@@ -68,8 +67,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	// Compare the password and hash
 	match, err := encrypt.ComparePasswordAndHash(loginRequest.Password, *user.PasswordHash)
 	if err != nil {
-		zap.L().Error("Failed to compare password and hash", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compare password and hash")
+		return response.InternalServerError("Failed to compare password and hash", err)
 	}
 
 	// If the password is not correct, return an error
@@ -80,8 +78,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	// Generate the refresh token
 	refreshToken, err := generateTokenAndSaveRefreshToken(c, tx, user.ID)
 	if err != nil {
-		zap.L().Error("Failed to generate refresh token", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate refresh token")
+		return response.InternalServerError("Failed to generate refresh token", err)
 	}
 
 	// Commit the transaction

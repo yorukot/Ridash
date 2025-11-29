@@ -4,6 +4,7 @@ import (
 	"net/http"
 	authutil "ridash/utils/auth"
 	"ridash/utils/config"
+	"ridash/utils/response"
 	"strconv"
 	"time"
 
@@ -46,7 +47,7 @@ func (h *AuthHandler) OAuthEntry(c echo.Context) error {
 
 	oauthStateJwt, oauthState, err := oauthGenerateStateWithPayload(next, expiresAt, userID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate oauth state")
+		return response.InternalServerError("Failed to generate oauth state", err)
 	}
 
 	oauthConfig := h.OAuthConfig.Providers[provider]

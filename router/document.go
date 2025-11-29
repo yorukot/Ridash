@@ -25,19 +25,19 @@ func DocumentRouter(api *echo.Group, db *pgxpool.Pool) {
 
 	// Publicly readable endpoints (respect document permission checks in handlers)
 	readable := api.Group("/documents", middleware.AuthOptionalMiddleware)
-	readable.GET("/", documentHandler.ListDocuments)
+	readable.GET("", documentHandler.ListDocuments)
 	readable.GET("/:id", documentHandler.GetDocument)
 
 	// Authenticated endpoints for owners/collaborators
 	protected := api.Group("/documents", middleware.AuthRequiredMiddleware)
-	protected.POST("/", documentHandler.CreateDocument)
+	protected.POST("", documentHandler.CreateDocument)
 	protected.PUT("/:id", documentHandler.UpdateDocument)
 	protected.DELETE("/:id", documentHandler.DeleteDocument)
 	protected.GET("/:id/socket", documentHandler.ProxyDocumentWebsocket)
 
 	shares := protected.Group("/:id/shares")
-	shares.GET("/", documentHandler.ListShares)
-	shares.POST("/", documentHandler.CreateShare)
+	shares.GET("", documentHandler.ListShares)
+	shares.POST("", documentHandler.CreateShare)
 	shares.PUT("/:shareID", documentHandler.UpdateShare)
 	shares.DELETE("/:shareID", documentHandler.DeleteShare)
 }

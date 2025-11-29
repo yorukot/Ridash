@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"ridash/models"
 	"ridash/repository"
+	"ridash/utils/response"
 	"strconv"
 	"time"
 
@@ -88,7 +89,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
 		zap.L().Error("Failed to get id token")
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get id token")
+		return response.InternalServerError("Failed to get id token", nil)
 	}
 
 	// Verify the token
@@ -101,7 +102,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -110,7 +111,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 	account, user, err := repository.GetAccountWithUserByProviderUserID(c.Request().Context(), tx, provider, userInfo.Subject)
 	if err != nil {
 		zap.L().Error("Failed to get account", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get account")
+		return response.InternalServerError("Failed to get account", err)
 	}
 
 	// If the account is not found and the userID is not zero, it means the user is already registered
@@ -120,7 +121,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 		newAccount, err := generateUserAccountFromOAuthUserInfo(userInfo, provider, userID)
 		if err != nil {
 			zap.L().Error("Failed to link account", zap.Error(err))
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate account")
+			return response.InternalServerError("Failed to generate account", err)
 		}
 
 		accountID = newAccount.ID
@@ -128,7 +129,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 		// Create the account
 		if err = repository.CreateAccount(c.Request().Context(), tx, newAccount); err != nil {
 			zap.L().Error("Failed to create account", zap.Error(err))
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create account")
+			return response.InternalServerError("Failed to create account", err)
 		}
 
 		zap.L().Info("OAuth link account successful", zap.String("provider", string(provider)), zap.Int64("user_id", userID), zap.String("ip", c.RealIP()))
@@ -137,13 +138,13 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 		newUser, newAccount, err := generateUserFromOAuthUserInfo(userInfo, provider)
 		if err != nil {
 			zap.L().Error("Failed to generate user", zap.Error(err))
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate user and account")
+			return response.InternalServerError("Failed to generate user and account", err)
 		}
 
 		// Create the user and account
 		if err = repository.CreateUserAndAccount(c.Request().Context(), tx, newUser, newAccount); err != nil {
 			zap.L().Error("Failed to create user", zap.Error(err))
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user and account")
+			return response.InternalServerError("Failed to create user and account", err)
 		}
 
 		accountID = newAccount.ID
@@ -160,7 +161,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 	// If the user ID is zero, it means something went wrong (it should not happen)
 	if userID == 0 {
 		zap.L().Error("User ID is zero", zap.Any("user", user))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user and account")
+		return response.InternalServerError("Failed to create user and account", nil)
 	}
 
 	// Create the oauth token
@@ -176,19 +177,19 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 	})
 	if err != nil {
 		zap.L().Error("Failed to create oauth token", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create oauth token")
+		return response.InternalServerError("Failed to create oauth token", err)
 	}
 
 	// Generate the refresh token
 	refreshToken, err := generateTokenAndSaveRefreshToken(c, tx, userID)
 	if err != nil {
 		zap.L().Error("Failed to create refresh token", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create refresh token")
+		return response.InternalServerError("Failed to create refresh token", err)
 	}
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	// Generate the refresh token cookie

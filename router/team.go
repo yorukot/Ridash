@@ -15,6 +15,7 @@ func TeamRouter(api *echo.Group, db *pgxpool.Pool) {
 	}
 
 	r := api.Group("/teams", middleware.AuthRequiredMiddleware)
+	r.GET("", teamHandler.ListTeams)
 	r.POST("", teamHandler.CreateTeam)
 	r.GET("/:id", teamHandler.GetTeam)
 	r.PUT("/:id", teamHandler.UpdateTeam)

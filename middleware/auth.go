@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"ridash/utils/config"
 	"ridash/utils/encrypt"
+	"ridash/utils/response"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -19,7 +20,7 @@ func authMiddlewareLogic(token string) (*encrypt.AccessTokenClaims, error) {
 
 	valid, claims, err := JWTSecret.ValidateAccessTokenAndGetClaims(token)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "Internal server error")
+		return nil, response.InternalServerError("Internal server error", err)
 	}
 
 	if !valid {

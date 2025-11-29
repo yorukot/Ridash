@@ -48,12 +48,12 @@ func (h *DocumentHandler) CreateDocument(c echo.Context) error {
 	}
 
 	if err := validator.New().Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	docID, err := id.GetID()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate document ID")
+		return response.InternalServerError("Failed to generate document ID", err)
 	}
 
 	now := time.Now()
@@ -68,16 +68,16 @@ func (h *DocumentHandler) CreateDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	if err := repository.CreateDocument(c.Request().Context(), tx, doc); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create document")
+		return response.InternalServerError("Failed to create document", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Document created successfully", doc))

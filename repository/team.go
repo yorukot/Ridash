@@ -90,3 +90,33 @@ func DeleteTeam(ctx context.Context, tx pgx.Tx, teamID int64) error {
 	_, err := tx.Exec(ctx, query, teamID)
 	return err
 }
+
+// ListTeamsByUserID returns teams the user owns or is a member of.
+func ListTeamsByUserID(ctx context.Context, tx pgx.Tx, userID int64) ([]models.Team, error) {
+	query := `SELECT DISTINCT t.id, t.owner_id, t.name, t.created_at, t.updated_at
+	          FROM teams t
+	          LEFT JOIN team_members tm ON tm.team_id = t.id
+	          WHERE t.owner_id = $1 OR tm.user_id = $1
+	          ORDER BY t.created_at DESC`
+
+	rows, err := tx.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var teams []models.Team
+	for rows.Next() {
+		var team models.Team
+		if err := rows.Scan(&team.ID, &team.OwnerID, &team.Name, &team.CreatedAt, &team.UpdatedAt); err != nil {
+			return nil, err
+		}
+		teams = append(teams, team)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return teams, nil
+}

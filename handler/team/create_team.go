@@ -50,13 +50,13 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 
 	// Validate the request body
 	if err := validator.New().Struct(createTeamRequest); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -64,13 +64,13 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Generate team ID
 	teamID, err := id.GetID()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate team ID")
+		return response.InternalServerError("Failed to generate team ID", err)
 	}
 
 	// Generate team member ID
 	teamMemberID, err := id.GetID()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate team member ID")
+		return response.InternalServerError("Failed to generate team member ID", err)
 	}
 
 	// Create the team
@@ -94,17 +94,17 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 
 	// Create the team in the database
 	if err = repository.CreateTeam(c.Request().Context(), tx, team); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create team")
+		return response.InternalServerError("Failed to create team", err)
 	}
 
 	// Add the owner as a team member
 	if err = repository.CreateTeamMember(c.Request().Context(), tx, teamMember); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add team member")
+		return response.InternalServerError("Failed to add team member", err)
 	}
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	// Respond with the success message and team data

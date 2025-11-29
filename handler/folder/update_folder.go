@@ -63,18 +63,18 @@ func (h *FolderHandler) UpdateFolder(c echo.Context) error {
 	}
 
 	if err := validator.New().Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	if team == nil {
@@ -87,7 +87,7 @@ func (h *FolderHandler) UpdateFolder(c echo.Context) error {
 
 	folder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, folderID, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folder")
+		return response.InternalServerError("Failed to get folder", err)
 	}
 
 	if folder == nil {
@@ -101,7 +101,7 @@ func (h *FolderHandler) UpdateFolder(c echo.Context) error {
 
 		parentFolder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, *req.ParentFolder, teamID)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get parent folder")
+			return response.InternalServerError("Failed to get parent folder", err)
 		}
 
 		if parentFolder == nil {
@@ -112,7 +112,7 @@ func (h *FolderHandler) UpdateFolder(c echo.Context) error {
 	now := time.Now()
 
 	if err := repository.UpdateFolder(c.Request().Context(), tx, folderID, teamID, req.Name, req.ParentFolder, now); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update folder")
+		return response.InternalServerError("Failed to update folder", err)
 	}
 
 	folder.Name = req.Name
@@ -120,7 +120,7 @@ func (h *FolderHandler) UpdateFolder(c echo.Context) error {
 	folder.UpdatedAt = now
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Folder updated successfully", folder))

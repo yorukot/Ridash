@@ -35,13 +35,13 @@ func (h *FolderHandler) GetFolders(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	if team == nil {
@@ -50,11 +50,11 @@ func (h *FolderHandler) GetFolders(c echo.Context) error {
 
 	folders, err := repository.GetFoldersByTeamID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folders")
+		return response.InternalServerError("Failed to get folders", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Folders retrieved successfully", folders))

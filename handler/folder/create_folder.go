@@ -58,18 +58,18 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 	}
 
 	if err := validator.New().Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	if team == nil {
@@ -83,7 +83,7 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 	if req.ParentFolder != nil {
 		parentFolder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, *req.ParentFolder, teamID)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get parent folder")
+			return response.InternalServerError("Failed to get parent folder", err)
 		}
 
 		if parentFolder == nil {
@@ -93,7 +93,7 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 
 	folderID, err := id.GetID()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate folder ID")
+		return response.InternalServerError("Failed to generate folder ID", err)
 	}
 
 	now := time.Now()
@@ -108,11 +108,11 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 	}
 
 	if err := repository.CreateFolder(c.Request().Context(), tx, folder); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create folder")
+		return response.InternalServerError("Failed to create folder", err)
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Folder created successfully", folder))

@@ -59,13 +59,13 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 
 	// Validate the request body
 	if err := validator.New().Struct(updateTeamRequest); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -73,7 +73,7 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 	// Get the team by ID
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	// If the team is not found, return an error
@@ -88,7 +88,7 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 
 	// Update the team in the database
 	if err = repository.UpdateTeam(c.Request().Context(), tx, teamID, updateTeamRequest.Name, time.Now()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update team")
+		return response.InternalServerError("Failed to update team", err)
 	}
 
 	// Update the team struct with new values
@@ -97,7 +97,7 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	// Respond with the success message and updated team data

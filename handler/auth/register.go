@@ -40,13 +40,13 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	// Validate the request body
 	if err := validator.New().Struct(registerRequest); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -54,7 +54,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Get the account by email
 	checkedAccount, err := repository.GetAccountByEmail(c.Request().Context(), tx, registerRequest.Email)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check if user already exists")
+		return response.InternalServerError("Failed to check if user already exists", err)
 	}
 
 	// If the account is found, return an error
@@ -65,23 +65,23 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Generate the user and account
 	user, account, err := GenerateUser(registerRequest)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate user")
+		return response.InternalServerError("Failed to generate user", err)
 	}
 
 	// Create the user and account in the database
 	if err = repository.CreateUserAndAccount(c.Request().Context(), tx, user, account); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user")
+		return response.InternalServerError("Failed to create user", err)
 	}
 
 	// Generate the refresh token
 	refreshToken, err := generateTokenAndSaveRefreshToken(c, tx, user.ID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate refresh token")
+		return response.InternalServerError("Failed to generate refresh token", err)
 	}
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	// Generate the refresh token cookie

@@ -36,7 +36,7 @@ func (h *TeamHandler) GetTeam(c echo.Context) error {
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+		return response.InternalServerError("Failed to begin transaction", err)
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -44,7 +44,7 @@ func (h *TeamHandler) GetTeam(c echo.Context) error {
 	// Get the team by ID
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+		return response.InternalServerError("Failed to get team", err)
 	}
 
 	// If the team is not found, return an error
@@ -54,7 +54,7 @@ func (h *TeamHandler) GetTeam(c echo.Context) error {
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+		return response.InternalServerError("Failed to commit transaction", err)
 	}
 
 	// Respond with the success message and team data

@@ -35,6 +35,7 @@ func ZapLogger(log *zap.Logger) echo.MiddlewareFunc {
 				zap.String("uri", req.RequestURI),
 				zap.String("host", req.Host),
 				zap.String("remote_ip", c.RealIP()),
+				zap.Error(err),
 			}
 
 			n := res.Status
