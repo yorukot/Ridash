@@ -15,7 +15,6 @@ import (
 	"ridash/repository"
 	authutil "ridash/utils/auth"
 	"ridash/utils/docmanager"
-	"ridash/utils/response"
 )
 
 // ProxyDocumentWebsocket upgrades the connection and proxies it to the document manager.
@@ -37,22 +36,26 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 	ctx := c.Request().Context()
 	tx, err := repository.StartTransaction(h.DB, ctx)
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, ctx)
 
-	doc, err := repository.GetDocumentByID(ctx, tx, docID)
+	docCtx, err := loadDocumentContext(ctx, tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
 
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
 
-	allowed, err := canWriteDocument(ctx, tx, doc, *userID)
+	doc := docCtx.Document
+	allowed, err := canWriteDocument(ctx, tx, docCtx, *userID)
 	if err != nil {
-		return response.InternalServerError("Failed to check permissions", err)
+		zap.L().Error("Failed to check permissions", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check permissions")
 	}
 
 	if !allowed {
@@ -60,7 +63,8 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, ctx); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	ticket, err := h.DocManager.IssueTicket(ctx, doc.ID, strconv.FormatInt(*userID, 10))
@@ -76,7 +80,8 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 
 	target, err := h.DocManager.EditEndpoint(ticket.Ticket)
 	if err != nil {
-		return response.InternalServerError("Failed to prepare document session", err)
+		zap.L().Error("Failed to prepare document session", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to prepare document session")
 	}
 
 	proxy := &httputil.ReverseProxy{
@@ -101,12 +106,12 @@ func (h *DocumentHandler) ProxyDocumentWebsocket(c echo.Context) error {
 	return nil
 }
 
-func canWriteDocument(ctx context.Context, tx pgx.Tx, doc *models.Document, userID int64) (bool, error) {
-	if doc.OwnerID == userID {
+func canWriteDocument(ctx context.Context, tx pgx.Tx, docCtx documentContext, userID int64) (bool, error) {
+	if isTeamOwner(userID, docCtx.Team) {
 		return true, nil
 	}
 
-	share, err := repository.GetShareByDocumentAndUser(ctx, tx, doc.ID, userID)
+	share, err := repository.GetShareByDocumentAndUser(ctx, tx, docCtx.Document.ID, userID)
 	if err != nil {
 		return false, err
 	}
@@ -115,7 +120,7 @@ func canWriteDocument(ctx context.Context, tx pgx.Tx, doc *models.Document, user
 		return true, nil
 	}
 
-	if doc.Permission == models.DocsPermissionPublicWrite {
+	if docCtx.Document.Permission == models.DocsPermissionPublicWrite {
 		return true, nil
 	}
 

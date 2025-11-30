@@ -9,12 +9,12 @@ import (
 
 // CreateDocument inserts a new document record.
 func CreateDocument(ctx context.Context, tx pgx.Tx, doc models.Document) error {
-	query := `INSERT INTO documents (id, owner_id, name, premission, created_at, updated_at)
+	query := `INSERT INTO documents (id, folder_id, name, premission, created_at, updated_at)
 	          VALUES ($1, $2, $3, $4, $5, $6)`
 
 	_, err := tx.Exec(ctx, query,
 		doc.ID,
-		doc.OwnerID,
+		doc.FolderID,
 		doc.Name,
 		doc.Permission,
 		doc.CreatedAt,
@@ -26,7 +26,7 @@ func CreateDocument(ctx context.Context, tx pgx.Tx, doc models.Document) error {
 
 // GetDocumentByID retrieves a document by its ID.
 func GetDocumentByID(ctx context.Context, tx pgx.Tx, id int64) (*models.Document, error) {
-	query := `SELECT id, owner_id, name, premission, created_at, updated_at
+	query := `SELECT id, folder_id, name, premission, created_at, updated_at
 	          FROM documents
 	          WHERE id = $1
 	          LIMIT 1`
@@ -34,7 +34,7 @@ func GetDocumentByID(ctx context.Context, tx pgx.Tx, id int64) (*models.Document
 	var doc models.Document
 	err := tx.QueryRow(ctx, query, id).Scan(
 		&doc.ID,
-		&doc.OwnerID,
+		&doc.FolderID,
 		&doc.Name,
 		&doc.Permission,
 		&doc.CreatedAt,
@@ -56,7 +56,7 @@ func GetDocumentByID(ctx context.Context, tx pgx.Tx, id int64) (*models.Document
 // If userID is nil, only public/public_write documents are returned.
 func ListDocumentsForUser(ctx context.Context, tx pgx.Tx, userID *int64) ([]models.Document, error) {
 	if userID == nil {
-		query := `SELECT id, owner_id, name, premission, created_at, updated_at
+		query := `SELECT id, folder_id, name, premission, created_at, updated_at
 		          FROM documents
 		          WHERE premission IN ('public', 'public_write')
 		          ORDER BY created_at DESC`
@@ -70,7 +70,7 @@ func ListDocumentsForUser(ctx context.Context, tx pgx.Tx, userID *int64) ([]mode
 		var documents []models.Document
 		for rows.Next() {
 			var doc models.Document
-			if err := rows.Scan(&doc.ID, &doc.OwnerID, &doc.Name, &doc.Permission, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
+			if err := rows.Scan(&doc.ID, &doc.FolderID, &doc.Name, &doc.Permission, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
 				return nil, err
 			}
 			documents = append(documents, doc)
@@ -83,10 +83,12 @@ func ListDocumentsForUser(ctx context.Context, tx pgx.Tx, userID *int64) ([]mode
 		return documents, nil
 	}
 
-	query := `SELECT DISTINCT d.id, d.owner_id, d.name, d.premission, d.created_at, d.updated_at
+	query := `SELECT DISTINCT d.id, d.folder_id, d.name, d.premission, d.created_at, d.updated_at
 	          FROM documents d
+	          JOIN folders f ON d.folder_id = f.id
+	          JOIN teams t ON f.team_id = t.id
 	          LEFT JOIN docs_shares s ON s.document_id = d.id AND s.user_id = $1
-	          WHERE d.owner_id = $1
+	          WHERE t.owner_id = $1
 	             OR d.premission IN ('public', 'public_write')
 	             OR s.id IS NOT NULL
 	          ORDER BY d.created_at DESC`
@@ -100,7 +102,7 @@ func ListDocumentsForUser(ctx context.Context, tx pgx.Tx, userID *int64) ([]mode
 	var documents []models.Document
 	for rows.Next() {
 		var doc models.Document
-		if err := rows.Scan(&doc.ID, &doc.OwnerID, &doc.Name, &doc.Permission, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
+		if err := rows.Scan(&doc.ID, &doc.FolderID, &doc.Name, &doc.Permission, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
 			return nil, err
 		}
 		documents = append(documents, doc)

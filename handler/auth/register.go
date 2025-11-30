@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -46,7 +47,8 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -54,7 +56,8 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Get the account by email
 	checkedAccount, err := repository.GetAccountByEmail(c.Request().Context(), tx, registerRequest.Email)
 	if err != nil {
-		return response.InternalServerError("Failed to check if user already exists", err)
+		zap.L().Error("Failed to check if user already exists", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check if user already exists")
 	}
 
 	// If the account is found, return an error
@@ -65,23 +68,27 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Generate the user and account
 	user, account, err := GenerateUser(registerRequest)
 	if err != nil {
-		return response.InternalServerError("Failed to generate user", err)
+		zap.L().Error("Failed to generate user", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate user")
 	}
 
 	// Create the user and account in the database
 	if err = repository.CreateUserAndAccount(c.Request().Context(), tx, user, account); err != nil {
-		return response.InternalServerError("Failed to create user", err)
+		zap.L().Error("Failed to create user", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user")
 	}
 
 	// Generate the refresh token
 	refreshToken, err := generateTokenAndSaveRefreshToken(c, tx, user.ID)
 	if err != nil {
-		return response.InternalServerError("Failed to generate refresh token", err)
+		zap.L().Error("Failed to generate refresh token", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate refresh token")
 	}
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	// Generate the refresh token cookie

@@ -45,27 +45,31 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	if err := repository.DeleteSharesByDocument(c.Request().Context(), tx, docID); err != nil {
-		return response.InternalServerError("Failed to delete document shares", err)
+		zap.L().Error("Failed to delete document shares", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete document shares")
 	}
 
 	if err := repository.DeleteDocument(c.Request().Context(), tx, docID); err != nil {
-		return response.InternalServerError("Failed to delete document", err)
+		zap.L().Error("Failed to delete document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete document")
 	}
 
 	if h.DocManager != nil {
@@ -76,7 +80,8 @@ func (h *DocumentHandler) DeleteDocument(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Document deleted successfully"))

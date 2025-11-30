@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -21,6 +22,7 @@ import (
 type createDocumentRequest struct {
 	Name       string                `json:"name" validate:"required,min=1,max=255" example:"My Document"`
 	Permission models.DocsPermission `json:"permission" validate:"required,oneof=private public public_write" example:"private"`
+	FolderID   int64                 `json:"folder_id,string" validate:"required,gt=0" example:"175928847299117063"`
 }
 
 // CreateDocument godoc
@@ -51,33 +53,58 @@ func (h *DocumentHandler) CreateDocument(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body,"+err.Error())
 	}
 
+	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
+	if err != nil {
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
+	}
+	defer repository.DeferRollback(tx, c.Request().Context())
+
+	folder, err := repository.GetFolderByID(c.Request().Context(), tx, req.FolderID)
+	if err != nil {
+		zap.L().Error("Failed to get folder", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folder")
+	}
+	if folder == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Folder not found")
+	}
+
+	team, err := repository.GetTeamByID(c.Request().Context(), tx, folder.TeamID)
+	if err != nil {
+		zap.L().Error("Failed to get team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
+	}
+	if team == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Team not found for folder")
+	}
+	if team.OwnerID != *userID {
+		return echo.NewHTTPError(http.StatusForbidden, "Only team owner can create documents")
+	}
+
 	docID, err := id.GetID()
 	if err != nil {
-		return response.InternalServerError("Failed to generate document ID", err)
+		zap.L().Error("Failed to generate document ID", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate document ID")
 	}
 
 	now := time.Now()
 	doc := models.Document{
 		ID:         docID,
-		OwnerID:    *userID,
+		FolderID:   req.FolderID,
 		Name:       req.Name,
 		Permission: req.Permission,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
 
-	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
-	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
-	}
-	defer repository.DeferRollback(tx, c.Request().Context())
-
 	if err := repository.CreateDocument(c.Request().Context(), tx, doc); err != nil {
-		return response.InternalServerError("Failed to create document", err)
+		zap.L().Error("Failed to create document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create document")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Document created successfully", doc))

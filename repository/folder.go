@@ -25,6 +25,40 @@ func CreateFolder(ctx context.Context, tx pgx.Tx, folder models.Folder) error {
 	return err
 }
 
+// GetFolderByID retrieves a folder by its ID without requiring team context.
+func GetFolderByID(ctx context.Context, tx pgx.Tx, folderID int64) (*models.Folder, error) {
+	query := `SELECT id, team_id, name, parent_folder, created_at, updated_at
+	          FROM folders
+	          WHERE id = $1
+	          LIMIT 1`
+
+	var folder models.Folder
+	var parentFolder sql.NullInt64
+
+	err := tx.QueryRow(ctx, query, folderID).Scan(
+		&folder.ID,
+		&folder.TeamID,
+		&folder.Name,
+		&parentFolder,
+		&folder.CreatedAt,
+		&folder.UpdatedAt,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if parentFolder.Valid {
+		folder.ParentFolder = &parentFolder.Int64
+	}
+
+	return &folder, nil
+}
+
 // GetFolderByIDAndTeamID retrieves a folder ensuring it belongs to the given team
 func GetFolderByIDAndTeamID(ctx context.Context, tx pgx.Tx, folderID, teamID int64) (*models.Folder, error) {
 	query := `SELECT id, team_id, name, parent_folder, created_at, updated_at

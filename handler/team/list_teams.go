@@ -7,6 +7,7 @@ import (
 	"ridash/utils/response"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -31,17 +32,20 @@ func (h *TeamHandler) ListTeams(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	teams, err := repository.ListTeamsByUserID(c.Request().Context(), tx, *userID)
 	if err != nil {
-		return response.InternalServerError("Failed to list teams", err)
+		zap.L().Error("Failed to list teams", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list teams")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Teams retrieved successfully", teams))

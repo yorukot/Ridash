@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -43,13 +44,15 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return response.InternalServerError("Failed to get team", err)
+		zap.L().Error("Failed to get team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
 	}
 
 	if team == nil {
@@ -61,15 +64,18 @@ func (h *TeamHandler) DeleteTeam(c echo.Context) error {
 	}
 
 	if err := repository.DeleteTeamMembersByTeamID(c.Request().Context(), tx, teamID); err != nil {
-		return response.InternalServerError("Failed to delete team members", err)
+		zap.L().Error("Failed to delete team members", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team members")
 	}
 
 	if err := repository.DeleteTeam(c.Request().Context(), tx, teamID); err != nil {
-		return response.InternalServerError("Failed to delete team", err)
+		zap.L().Error("Failed to delete team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete team")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Team deleted successfully"))

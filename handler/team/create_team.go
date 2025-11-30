@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -56,7 +57,8 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -64,13 +66,15 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 	// Generate team ID
 	teamID, err := id.GetID()
 	if err != nil {
-		return response.InternalServerError("Failed to generate team ID", err)
+		zap.L().Error("Failed to generate team ID", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate team ID")
 	}
 
 	// Generate team member ID
 	teamMemberID, err := id.GetID()
 	if err != nil {
-		return response.InternalServerError("Failed to generate team member ID", err)
+		zap.L().Error("Failed to generate team member ID", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate team member ID")
 	}
 
 	// Create the team
@@ -94,17 +98,20 @@ func (h *TeamHandler) CreateTeam(c echo.Context) error {
 
 	// Create the team in the database
 	if err = repository.CreateTeam(c.Request().Context(), tx, team); err != nil {
-		return response.InternalServerError("Failed to create team", err)
+		zap.L().Error("Failed to create team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create team")
 	}
 
 	// Add the owner as a team member
 	if err = repository.CreateTeamMember(c.Request().Context(), tx, teamMember); err != nil {
-		return response.InternalServerError("Failed to add team member", err)
+		zap.L().Error("Failed to add team member", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add team member")
 	}
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	// Respond with the success message and team data

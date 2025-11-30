@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -63,13 +64,15 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return response.InternalServerError("Failed to get team", err)
+		zap.L().Error("Failed to get team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
 	}
 
 	if team == nil {
@@ -83,7 +86,8 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 	if req.ParentFolder != nil {
 		parentFolder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, *req.ParentFolder, teamID)
 		if err != nil {
-			return response.InternalServerError("Failed to get parent folder", err)
+			zap.L().Error("Failed to get parent folder", zap.Error(err))
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get parent folder")
 		}
 
 		if parentFolder == nil {
@@ -93,7 +97,8 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 
 	folderID, err := id.GetID()
 	if err != nil {
-		return response.InternalServerError("Failed to generate folder ID", err)
+		zap.L().Error("Failed to generate folder ID", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate folder ID")
 	}
 
 	now := time.Now()
@@ -108,11 +113,13 @@ func (h *FolderHandler) CreateFolder(c echo.Context) error {
 	}
 
 	if err := repository.CreateFolder(c.Request().Context(), tx, folder); err != nil {
-		return response.InternalServerError("Failed to create folder", err)
+		zap.L().Error("Failed to create folder", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create folder")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Folder created successfully", folder))

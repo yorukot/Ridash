@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -62,32 +63,37 @@ func (h *DocumentHandler) UpdateDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	now := time.Now()
 	if err := repository.UpdateDocument(c.Request().Context(), tx, docID, req.Name, req.Permission, now); err != nil {
-		return response.InternalServerError("Failed to update document", err)
+		zap.L().Error("Failed to update document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update document")
 	}
 
+	doc := docCtx.Document
 	doc.Name = req.Name
 	doc.Permission = req.Permission
 	doc.UpdatedAt = now
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Document updated successfully", doc))

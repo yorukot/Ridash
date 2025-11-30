@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -50,13 +51,15 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return response.InternalServerError("Failed to get team", err)
+		zap.L().Error("Failed to get team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
 	}
 
 	if team == nil {
@@ -69,7 +72,8 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 
 	folder, err := repository.GetFolderByIDAndTeamID(c.Request().Context(), tx, folderID, teamID)
 	if err != nil {
-		return response.InternalServerError("Failed to get folder", err)
+		zap.L().Error("Failed to get folder", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get folder")
 	}
 
 	if folder == nil {
@@ -77,11 +81,13 @@ func (h *FolderHandler) DeleteFolder(c echo.Context) error {
 	}
 
 	if err := repository.DeleteFolder(c.Request().Context(), tx, folderID, teamID); err != nil {
-		return response.InternalServerError("Failed to delete folder", err)
+		zap.L().Error("Failed to delete folder", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete folder")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Folder deleted successfully"))

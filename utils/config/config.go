@@ -83,3 +83,10 @@ func Env() *EnvConfig {
 	}
 	return appConfig
 }
+
+// ResetForTests clears cached configuration so tests can reload environment variables.
+// This should only be used from test code.
+func ResetForTests() {
+	appConfig = nil
+	once = sync.Once{}
+}

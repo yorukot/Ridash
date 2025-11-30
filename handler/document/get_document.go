@@ -45,18 +45,20 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
+	doc := docCtx.Document
 
 	// Enforce access for private documents
 	if doc.Permission == models.DocsPermissionPrivate {
@@ -64,10 +66,11 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusForbidden, "Access denied")
 		}
 
-		if *userID != doc.OwnerID {
+		if !isTeamOwner(*userID, docCtx.Team) {
 			share, err := repository.GetShareByDocumentAndUser(c.Request().Context(), tx, doc.ID, *userID)
 			if err != nil {
-				return response.InternalServerError("Failed to check share permissions", err)
+				zap.L().Error("Failed to check share permissions", zap.Error(err))
+				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check share permissions")
 			}
 			if share == nil {
 				return echo.NewHTTPError(http.StatusForbidden, "Access denied")
@@ -76,7 +79,8 @@ func (h *DocumentHandler) GetDocument(c echo.Context) error {
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	result := any(doc)

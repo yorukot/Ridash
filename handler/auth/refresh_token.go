@@ -36,14 +36,16 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
 	// Get the refresh token by token
 	checkedRefreshToken, err := repository.GetRefreshTokenByToken(c.Request().Context(), tx, userRefreshToken.Value)
 	if err != nil {
-		return response.InternalServerError("Failed to get refresh token by token", err)
+		zap.L().Error("Failed to get refresh token by token", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get refresh token by token")
 	}
 
 	// If the refresh token is not found, return an error
@@ -65,13 +67,15 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	now := time.Now()
 	checkedRefreshToken.UsedAt = &now
 	if err = repository.UpdateRefreshTokenUsedAt(c.Request().Context(), tx, *checkedRefreshToken); err != nil {
-		return response.InternalServerError("Failed to update refresh token used_at", err)
+		zap.L().Error("Failed to update refresh token used_at", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update refresh token used_at")
 	}
 
 	// Generate new refresh token
 	newRefreshToken, err := generateTokenAndSaveRefreshToken(c, tx, checkedRefreshToken.UserID)
 	if err != nil {
-		return response.InternalServerError("Failed to generate refresh token", err)
+		zap.L().Error("Failed to generate refresh token", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate refresh token")
 	}
 
 	// Commit the transaction
@@ -89,7 +93,8 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	// Generate the access token
 	accessToken, err := accessTokenClaims.GenerateAccessToken(config.Env().AppName, strconv.FormatInt(checkedRefreshToken.UserID, 10), time.Now().Add(time.Duration(config.Env().AccessTokenExpiresAt)*time.Second))
 	if err != nil {
-		return response.InternalServerError("Failed to generate access token", err)
+		zap.L().Error("Failed to generate access token", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate access token")
 	}
 
 	return c.JSON(http.StatusCreated, response.Success("Access token refreshed successfully", map[string]string{

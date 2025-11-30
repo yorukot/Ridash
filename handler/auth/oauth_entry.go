@@ -4,11 +4,11 @@ import (
 	"net/http"
 	authutil "ridash/utils/auth"
 	"ridash/utils/config"
-	"ridash/utils/response"
 	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
@@ -47,7 +47,8 @@ func (h *AuthHandler) OAuthEntry(c echo.Context) error {
 
 	oauthStateJwt, oauthState, err := oauthGenerateStateWithPayload(next, expiresAt, userID)
 	if err != nil {
-		return response.InternalServerError("Failed to generate oauth state", err)
+		zap.L().Error("Failed to generate oauth state", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate oauth state")
 	}
 
 	oauthConfig := h.OAuthConfig.Providers[provider]

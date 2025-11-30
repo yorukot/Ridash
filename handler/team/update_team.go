@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -65,7 +66,8 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 	// Begin the transaction
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 
 	defer repository.DeferRollback(tx, c.Request().Context())
@@ -73,7 +75,8 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 	// Get the team by ID
 	team, err := repository.GetTeamByID(c.Request().Context(), tx, teamID)
 	if err != nil {
-		return response.InternalServerError("Failed to get team", err)
+		zap.L().Error("Failed to get team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get team")
 	}
 
 	// If the team is not found, return an error
@@ -88,7 +91,8 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 
 	// Update the team in the database
 	if err = repository.UpdateTeam(c.Request().Context(), tx, teamID, updateTeamRequest.Name, time.Now()); err != nil {
-		return response.InternalServerError("Failed to update team", err)
+		zap.L().Error("Failed to update team", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update team")
 	}
 
 	// Update the team struct with new values
@@ -97,7 +101,8 @@ func (h *TeamHandler) UpdateTeam(c echo.Context) error {
 
 	// Commit the transaction
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	// Respond with the success message and updated team data

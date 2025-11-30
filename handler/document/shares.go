@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // +----------------------------------------------+
@@ -46,28 +47,32 @@ func (h *DocumentHandler) ListShares(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	shares, err := repository.ListSharesByDocument(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to list shares", err)
+		zap.L().Error("Failed to list shares", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list shares")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Shares retrieved successfully", shares))
@@ -120,24 +125,27 @@ func (h *DocumentHandler) CreateShare(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	existingShare, err := repository.GetShareByDocumentAndUser(c.Request().Context(), tx, docID, req.UserID)
 	if err != nil {
-		return response.InternalServerError("Failed to check existing share", err)
+		zap.L().Error("Failed to check existing share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing share")
 	}
 	if existingShare != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Share already exists for this user")
@@ -145,7 +153,8 @@ func (h *DocumentHandler) CreateShare(c echo.Context) error {
 
 	shareID, err := id.GetID()
 	if err != nil {
-		return response.InternalServerError("Failed to generate share ID", err)
+		zap.L().Error("Failed to generate share ID", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate share ID")
 	}
 
 	share := models.DocsShare{
@@ -156,11 +165,13 @@ func (h *DocumentHandler) CreateShare(c echo.Context) error {
 	}
 
 	if err := repository.CreateShare(c.Request().Context(), tx, share); err != nil {
-		return response.InternalServerError("Failed to create share", err)
+		zap.L().Error("Failed to create share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create share")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Share created successfully", share))
@@ -212,37 +223,42 @@ func (h *DocumentHandler) UpdateShare(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	share, err := repository.GetShareByID(c.Request().Context(), tx, shareID)
 	if err != nil {
-		return response.InternalServerError("Failed to get share", err)
+		zap.L().Error("Failed to get share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get share")
 	}
 	if share == nil || share.DocumentID != docID {
 		return echo.NewHTTPError(http.StatusNotFound, "Share not found")
 	}
 
 	if err := repository.UpdateShare(c.Request().Context(), tx, shareID, req.Roles); err != nil {
-		return response.InternalServerError("Failed to update share", err)
+		zap.L().Error("Failed to update share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update share")
 	}
 
 	share.Roles = req.Roles
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.Success("Share updated successfully", share))
@@ -280,35 +296,40 @@ func (h *DocumentHandler) DeleteShare(c echo.Context) error {
 
 	tx, err := repository.StartTransaction(h.DB, c.Request().Context())
 	if err != nil {
-		return response.InternalServerError("Failed to begin transaction", err)
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to begin transaction")
 	}
 	defer repository.DeferRollback(tx, c.Request().Context())
 
-	doc, err := repository.GetDocumentByID(c.Request().Context(), tx, docID)
+	docCtx, err := loadDocumentContext(c.Request().Context(), tx, docID)
 	if err != nil {
-		return response.InternalServerError("Failed to get document", err)
+		zap.L().Error("Failed to get document", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get document")
 	}
-	if doc == nil {
+	if docCtx.Document == nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Document not found")
 	}
-	if doc.OwnerID != *userID {
+	if !isTeamOwner(*userID, docCtx.Team) {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
 	share, err := repository.GetShareByID(c.Request().Context(), tx, shareID)
 	if err != nil {
-		return response.InternalServerError("Failed to get share", err)
+		zap.L().Error("Failed to get share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get share")
 	}
 	if share == nil || share.DocumentID != docID {
 		return echo.NewHTTPError(http.StatusNotFound, "Share not found")
 	}
 
 	if err := repository.DeleteShare(c.Request().Context(), tx, shareID); err != nil {
-		return response.InternalServerError("Failed to delete share", err)
+		zap.L().Error("Failed to delete share", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete share")
 	}
 
 	if err := repository.CommitTransaction(tx, c.Request().Context()); err != nil {
-		return response.InternalServerError("Failed to commit transaction", err)
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
 	}
 
 	return c.JSON(http.StatusOK, response.SuccessMessage("Share deleted successfully"))

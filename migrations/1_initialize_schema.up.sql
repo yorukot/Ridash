@@ -15,12 +15,12 @@ CREATE TABLE "public"."docs_shares" (
 
 CREATE TABLE "public"."documents" (
     "id" bigint NOT NULL,
-    "owner_id" bigint NOT NULL,
+    "folder_id" bigint NOT NULL,
     "name" text NOT NULL,
     "premission" docs_permission NOT NULL,
     "created_at" timestamp NOT NULL,
     "updated_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
+    CONSTRAINT "pk_documents_id" PRIMARY KEY ("id")
 );
 
 CREATE TABLE "public"."refresh_tokens" (
@@ -102,7 +102,7 @@ CREATE TABLE "public"."team_members" (
 
 CREATE TABLE "public"."teams" (
     "id" bigint NOT NULL,
-    "onwer_id" bigint NOT NULL,
+    "owner_id" bigint NOT NULL,
     "name" varchar(50) NOT NULL,
     "updated_at" timestamp NOT NULL,
     "created_at" timestamp NOT NULL,
@@ -113,11 +113,10 @@ CREATE TABLE "public"."teams" (
 -- Schema: public
 ALTER TABLE "public"."accounts" ADD CONSTRAINT "fk_accounts_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
 ALTER TABLE "public"."docs_shares" ADD CONSTRAINT "fk_docs_shares_document_id_documents_id" FOREIGN KEY("document_id") REFERENCES "public"."documents"("id");
-ALTER TABLE "public"."documents" ADD CONSTRAINT "fk_documents_owner_id_folders_id" FOREIGN KEY("owner_id") REFERENCES "public"."folders"("id");
-ALTER TABLE "public"."documents" ADD CONSTRAINT "fk_documents_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."documents" ADD CONSTRAINT "fk_documents_folder_id_folders_id" FOREIGN KEY("folder_id") REFERENCES "public"."folders"("id");
 ALTER TABLE "public"."folders" ADD CONSTRAINT "fk_folders_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."oauth_tokens" ADD CONSTRAINT "fk_oauth_tokens_account_id_accounts_id" FOREIGN KEY("account_id") REFERENCES "public"."accounts"("id");
 ALTER TABLE "public"."refresh_tokens" ADD CONSTRAINT "fk_refresh_tokens_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
 ALTER TABLE "public"."team_members" ADD CONSTRAINT "fk_team_members_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."team_members" ADD CONSTRAINT "fk_team_members_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
-ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_onwer_id_users_id" FOREIGN KEY("onwer_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
